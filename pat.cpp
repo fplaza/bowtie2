@@ -254,7 +254,7 @@ bool PairedDualPatternSource::nextReadPair(
 				assert(done_a && done_b);
 				if(cur + 1 > cur_) cur_++;
 				cur = cur_; // Move on to next PatternSource
-				ts.~ThreadSafe();
+				//TODO: ts.release()
 				continue; // on to next pair of PatternSources
 			} else if(!success_b) {
 				cerr << "Error, fewer reads in file specified with -2 than in file specified with -1" << endl;
@@ -263,7 +263,7 @@ bool PairedDualPatternSource::nextReadPair(
 			assert_eq(rdid_a, rdid_b);
 			//assert_eq(endid_a+1, endid_b);
 			assert_eq(success_a, success_b);
-			ts.~ThreadSafe();
+			//TODO: ts.release()
 			if(fixName) {
 				ra.fixMateName(1);
 				rb.fixMateName(2);
@@ -518,7 +518,7 @@ bool VectorPatternSource::nextReadImpl(
 	r.reset();
 	ThreadSafe ts(&mutex,doLocking_);
 	if(cur_ >= v_.size()) {
-		ts.~ThreadSafe();
+		//TODO: ts.release()
 		// Clear all the Strings, as a signal to the caller that
 		// we're out of reads
 		r.reset();
@@ -566,7 +566,7 @@ bool VectorPatternSource::nextReadPairImpl(
 	}
 	ThreadSafe ts(&mutex,doLocking_);
 	if(cur_ >= v_.size()-1) {
-		ts.~ThreadSafe();
+		//ts.release()
 		// Clear all the Strings, as a signal to the caller that
 		// we're out of reads
 		ra.reset();
