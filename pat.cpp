@@ -240,30 +240,32 @@ bool PairedDualPatternSource::nextReadPair(
 			bool success_b = false, done_b = false;
 			// Lock to ensure that this thread gets parallel reads
 			// in the two mate files
-			ThreadSafe ts(&mutex_m);
-			do {
-				(*srca_)[cur]->nextRead(ra, rdid_a, endid_a, success_a, done_a);
-			} while(!success_a && !done_a);
-			do {
-				(*srcb_)[cur]->nextRead(rb, rdid_b, endid_b, success_b, done_b);
-			} while(!success_b && !done_b);
-			if(!success_a && success_b) {
-				cerr << "Error, fewer reads in file specified with -1 than in file specified with -2" << endl;
-				throw 1;
-			} else if(!success_a) {
-				assert(done_a && done_b);
-				if(cur + 1 > cur_) cur_++;
-				cur = cur_; // Move on to next PatternSource
-				//TODO: ts.release()
-				continue; // on to next pair of PatternSources
-			} else if(!success_b) {
-				cerr << "Error, fewer reads in file specified with -2 than in file specified with -1" << endl;
-				throw 1;
+			{
+				ThreadSafe ts(&mutex_m);
+				do {
+					(*srca_)[cur]->nextRead(ra, rdid_a, endid_a, success_a, done_a);
+				} while(!success_a && !done_a);
+				do {
+					(*srcb_)[cur]->nextRead(rb, rdid_b, endid_b, success_b, done_b);
+				} while(!success_b && !done_b);
+				if(!success_a && success_b) {
+						cerr << "Error, fewer reads in file specified with -1 than in file specified with -2" << endl;
+					throw 1;
+				} else if(!success_a) {
+					assert(done_a && done_b);
+					if(cur + 1 > cur_) cur_++;
+						cur = cur_; // Move on to next PatternSource
+					//release lock
+					continue; // on to next pair of PatternSources
+				} else if(!success_b) {
+					cerr << "Error, fewer reads in file specified with -2 than in file specified with -1" << endl;
+					throw 1;
+				}
+				assert_eq(rdid_a, rdid_b);
+				//assert_eq(endid_a+1, endid_b);
+				assert_eq(success_a, success_b);
+				//release lock
 			}
-			assert_eq(rdid_a, rdid_b);
-			//assert_eq(endid_a+1, endid_b);
-			assert_eq(success_a, success_b);
-			//TODO: ts.release()
 			if(fixName) {
 				ra.fixMateName(1);
 				rb.fixMateName(2);
@@ -516,9 +518,10 @@ bool VectorPatternSource::nextReadImpl(
 {
 	// Let Strings begin at the beginning of the respective bufs
 	r.reset();
+	//lock
 	ThreadSafe ts(&mutex,doLocking_);
 	if(cur_ >= v_.size()) {
-		//TODO: ts.release()
+		//TODO: release lock here, if not, it's held longer than necessary
 		// Clear all the Strings, as a signal to the caller that
 		// we're out of reads
 		r.reset();
