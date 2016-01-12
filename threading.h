@@ -25,6 +25,7 @@
 #ifdef WITH_TBB
 # include <tbb/mutex.h>
 # include <tbb/spin_mutex.h>
+# include <tbb/queuing_mutex.h>
 # ifdef WITH_AFFINITY
 #  include <cstdlib>
 #  include <sched.h>
@@ -40,7 +41,11 @@
 
 #ifdef NO_SPINLOCK
 # ifdef WITH_TBB
-#   define MUTEX_T tbb::mutex
+#   ifdef WITH_QUEUELOCK
+#  	define MUTEX_T tbb::queuing_mutex
+#   else
+#       define MUTEX_T tbb::mutex
+#   endif
 # else
 #   define MUTEX_T tthread::mutex
 # endif
@@ -65,20 +70,41 @@ public:
 	
     ThreadSafe(MUTEX_T* ptr_mutex, bool locked = true) {
 		if(locked) {
+#if WITH_TBB && WITH_QUEUELOCK
+		    //have to use the heap as we can't copy
+		    //the scoped lock
+		    this->ptr_mutex = new MUTEX_T::scoped_lock(*ptr_mutex);
+#else
 		    this->ptr_mutex = ptr_mutex;
 		    ptr_mutex->lock();
+#endif
 		}
 		else
 		    this->ptr_mutex = NULL;
 	}
+	
+        //here to allow for unlocking without calling destructor
+	void unlock()
+	{
+	    if (ptr_mutex != NULL)
+#if WITH_TBB && WITH_QUEUELOCK
+	    	delete ptr_mutex;
+	}
+#else
+	    	ptr_mutex->unlock();
+	}
+#endif
 
 	~ThreadSafe() {
-	    if (ptr_mutex != NULL)
-	        ptr_mutex->unlock();
+		unlock();
 	}
     
 private:
+#if WITH_TBB && WITH_QUEUELOCK
+	MUTEX_T::scoped_lock* ptr_mutex;
+#else
 	MUTEX_T *ptr_mutex;
+#endif
 };
 
 #ifdef WITH_TBB
