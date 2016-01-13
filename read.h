@@ -84,6 +84,37 @@ struct Read {
 		constructReverses();
 	}
 
+	//cwilks
+	void set_byte_record(char* bytes)
+	{
+		fixedByteRecord=bytes;
+	}
+	
+	void init_from_byte_record()
+	{
+		char* nm = (char*) calloc(76,sizeof(char));	
+		char* seq = (char*) calloc(101,sizeof(char));	
+		char* qual = (char*) calloc(101,sizeof(char));
+		int i = 0;
+		int seq_start = -1;
+		for(i=0;i<76;i++)
+	        {
+			if(fixedByteRecord[i] == '\n')
+			{
+				nm[i]='\0';
+				seq_start=i+1;
+				i=76;
+			}
+		}
+		memcpy(seq,&(fixedByteRecord[seq_start]),100);
+		seq[100]='\0';
+		//skip anything in between
+		seq_start = 304-101;
+		memcpy(qual,&(fixedByteRecord[seq_start]),100);
+		qual[100]='\0';
+		init(nm,seq,qual);
+	}
+
 	/**
 	 * Simple init function, used for testing.
 	 */
@@ -313,6 +344,8 @@ struct Read {
 		return true;
 	}
 #endif
+
+	char* fixedByteRecord;
 
 	BTDnaString patFw;            // forward-strand sequence
 	BTDnaString patRc;            // reverse-complement sequence

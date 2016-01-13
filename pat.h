@@ -610,10 +610,26 @@ static inline int getOverNewline(FileBuf& in) {
 	return c;
 }
 
+static inline int getOverNewline(FileBuff& in) {
+	int c;
+	while(isspace(c = in.get()));
+	return c;
+}
+
 /// Skip to the end of the current string of newline chars such that
 /// the next call to get() returns the first character after the
 /// whitespace
 static inline int peekOverNewline(FileBuf& in) {
+	while(true) {
+		int c = in.peek();
+		if(c != '\r' && c != '\n') {
+			return c;
+		}
+		in.get();
+	}
+}
+
+static inline int peekOverNewline(FileBuff& in) {
 	while(true) {
 		int c = in.peek();
 		if(c != '\r' && c != '\n') {
@@ -638,9 +654,37 @@ static inline int getToEndOfLine(FileBuf& in) {
 	}
 }
 
+static inline int getToEndOfLine(FileBuff& in) {
+	while(true) {
+		int c = in.get(); if(c < 0) return -1;
+		if(c == '\n' || c == '\r') {
+			while(c == '\n' || c == '\r') {
+				c = in.get(); if(c < 0) return -1;
+			}
+			// c now holds first character of next line
+			return c;
+		}
+	}
+}
+
 /// Skip to the end of the current line such that the next call to
 /// get() returns the first character on the next line
 static inline int peekToEndOfLine(FileBuf& in) {
+	while(true) {
+		int c = in.get(); if(c < 0) return c;
+		if(c == '\n' || c == '\r') {
+			c = in.peek();
+			while(c == '\n' || c == '\r') {
+				in.get(); if(c < 0) return c; // consume \r or \n
+				c = in.peek();
+			}
+			// next get() gets first character of next line
+			return c;
+		}
+	}
+}
+
+static inline int peekToEndOfLine(FileBuff& in) {
 	while(true) {
 		int c = in.get(); if(c < 0) return c;
 		if(c == '\n' || c == '\r') {
@@ -885,6 +929,7 @@ int parseQuals(
 	bool intQuals,
 	bool phred64,
 	bool solexa64);
+
 
 /**
  * Synchronized concrete pattern source for a list of FASTA or CSFASTA
@@ -1288,6 +1333,7 @@ protected:
 	}
 
 private:
+	FileBuff fb__;
 	size_t length_;     /// length of reads to generate
 	size_t freq_;       /// frequency to sample reads
 	size_t eat_;        /// number of characters we need to skip before
@@ -1329,6 +1375,12 @@ public:
 	}
 	
 protected:
+	bool read_full(
+	Read& r,
+	TReadId& rdid,
+	TReadId& endid,
+	bool& success,
+	bool& done);
 
 	/**
 	 * Scan to the next FASTQ record (starting with @) and return the first

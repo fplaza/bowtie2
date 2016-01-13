@@ -44,6 +44,118 @@ static inline bool isspace_notnl(int c) {
 	return isspace(c) && !isnewline(c);
 }
 
+//cwilks: very similar to FileBuf, but it doesn't read
+//from a file or a stream, it just takes a byte array
+//which is itself read from 
+/*static const size_t BUF_SZ_ = 256 * 1024;
+static const size_t LASTN_BUF_SZ_ = 8 * 1024;*/
+static const size_t BUF_SZ_ = 304;
+static const size_t LASTN_BUF_SZ_ = 24;
+class FileBuff {
+public:
+	FileBuff(int size_of_record)
+	{
+		this->sizeOfRecord = size_of_record;
+		_buf = (char*) calloc(sizeOfRecord,sizeof(char));
+	}
+	
+	int copy_byte_array(const char * byte_array)
+	{
+		this->_cur=0;
+		return memcpy(_buf,byte_array,sizeOfRecord);
+	}
+	
+	
+	bool isOpen()
+	{
+		return _buf != NULL;
+	}
+
+	void close() {}
+
+	~FileBuff()
+	{
+		free _buf;
+	}
+
+	int get()
+	{
+		assert(_buf != NULL);
+		if(_cur >= sizeOfRecord)
+		{
+			return -1;
+		}
+		int c = (int) _buf[_cur++];
+		if(_lastn_cur < LASTN_BUF_SZ_) _lastn_buf[_lastn_cur++] = c;
+		return c;
+	}
+
+	void reset()
+	{
+		//_cur = -1;
+		_cur = BUF_SZ_;
+		_buf_sz = BUF_SZ_;
+		//_done = false;
+	}	
+
+	int peek()
+	{
+		assert(_buf != NULL);
+		//assert_lt(_cur, sizeOfRecord);
+		if(_cur+1 >= sizeOfRecord)
+		{
+			return -1;
+		}		
+		return (int) _buf[_cur+1];
+	}	
+	
+	int peekPastNewline() {
+		int c = peek();
+		while(!isnewline(c) && c != -1) c = get();
+		while(isnewline(c)) c = get();
+		assert_neq(c, '\r');
+		assert_neq(c, '\n');
+		return c;
+	}
+	
+	void resetLastN() {
+		_lastn_cur = 0;
+	}
+
+	//TODO double check what this is used for	
+	const char *lastN() const {
+		return _lastn_buf;
+	}
+	
+	size_t lastNLen() const {
+		return _lastn_cur;
+	}
+	
+private:
+	void init() {
+		_cur = -1;
+		//_done = false;
+		_lastn_cur = 0;
+		// no need to clear _buf[]
+	}
+	FILE     *_in;
+	size_t    _cur;
+	size_t    _buf_sz;
+	//bool      _done;
+	uint8_t   _buf[BUF_SZ_]; // small record-sized input buffer
+	size_t    _lastn_cur;
+	char      _lastn_buf[LASTN_BUF_SZ_]; // buffer of the last N chars dispensed
+
+	
+//get
+//getOverNewline(fb_)
+//peekOverNewline(fb_)
+//peek()
+///peekToEndOfLine(fb_)
+//lastN()
+//lastNLen()
+//resetLastN()
+
 /**
  * Simple wrapper for a FILE*, istream or ifstream that reads it in chunks
  * using fread and keeps those chunks in a buffer.  It also services calls to
@@ -197,6 +309,7 @@ public:
 					_buf_sz = _ins->gcount();
 				} else {
 					assert(_in != NULL);
+					//_buf_sz = fread_unlocked(_buf, 1, BUF_SZ, _in);
 					_buf_sz = fread(_buf, 1, BUF_SZ, _in);
 				}
 				_cur = 0;

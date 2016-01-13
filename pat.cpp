@@ -242,6 +242,7 @@ bool PairedDualPatternSource::nextReadPair(
 			// in the two mate files
 			{
 				ThreadSafe ts(&mutex_m);
+				//only lock for reading of buffered bytes
 				do {
 					(*srca_)[cur]->nextRead(ra, rdid_a, endid_a, success_a, done_a);
 				} while(!success_a && !done_a);
@@ -266,6 +267,9 @@ bool PairedDualPatternSource::nextReadPair(
 				assert_eq(success_a, success_b);
 				//release lock
 			}
+			//pass the Read's FileBuff fb___ into the Fastq read_full for each mate
+			//(*srca_)[cur]->read_full(ra,rdid_a,endid_a,success_a,done_a)
+			//(*srcb_)[cur]->read_full(rb,rdid_b,endid_b,success_b,done_b)
 			if(fixName) {
 				ra.fixMateName(1);
 				rb.fixMateName(2);
@@ -811,7 +815,6 @@ bool FastaPatternSource::read(
 	return success;
 }
 
-/// Read another pattern from a FASTQ input file
 bool FastqPatternSource::read(
 	Read& r,
 	TReadId& rdid,
@@ -819,6 +822,31 @@ bool FastqPatternSource::read(
 	bool& success,
 	bool& done)
 {
+	int size_of_record = 304;
+	int c;
+	int dstLen = 0;
+	success = true;
+	done = false;
+	r.reset();
+	//alread locked above so we can't take time to parse fastq record here
+	//reset 304 length buffer fb_
+	size_t bytes_read = fb_.get(&(fb__._buf),size_of_record);
+	//pass to fb_.get(fb__,304)
+	//then put the 304 buffer into a FileBuff object fb___
+	//store fb___ in the Read r for later parsing
+	//return, parsing will have to be done higher up
+}
+
+/// Read another pattern from a FASTQ input file
+bool FastqPatternSource::read_full(
+	Read& r,
+	TReadId& rdid,
+	TReadId& endid,
+	bool& success,
+	bool& done)
+{
+	FileBuff fb_ = r.fileBuff();
+	assert_ne(fb_,NULL);
 	int c;
 	int dstLen = 0;
 	success = true;
