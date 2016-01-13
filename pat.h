@@ -184,6 +184,13 @@ public:
 		TReadId& endid,
 		bool& success,
 		bool& done);
+	
+	virtual bool read_full(
+		Read& r,
+		TReadId& rdid,
+		TReadId& endid,
+		bool& success,
+		bool& done);
 
 	/**
 	 * Implementation to be provided by concrete subclasses.  An
@@ -1014,6 +1021,19 @@ static inline bool tokenizeQualLine(
 	return true;
 }
 
+static inline bool tokenizeQualLine(
+	FileBuff& filebuf,
+	char *buf,
+	size_t buflen,
+	EList<string>& toks)
+{
+	size_t rd = filebuf.gets(buf, buflen);
+	if(rd == 0) return false;
+	assert(NULL == strrchr(buf, '\n'));
+	tokenize(string(buf), " ", toks);
+	return true;
+}
+
 /**
  * Synchronized concrete pattern source for a list of files with tab-
  * delimited name, seq, qual fields (or, for paired-end reads,
@@ -1374,7 +1394,6 @@ public:
 		BufferedFilePatternSource::reset();
 	}
 	
-protected:
 	bool read_full(
 	Read& r,
 	TReadId& rdid,
@@ -1382,6 +1401,7 @@ protected:
 	bool& success,
 	bool& done);
 
+protected:
 	/**
 	 * Scan to the next FASTQ record (starting with @) and return the first
 	 * character of the record (which will always be @).  Since the quality

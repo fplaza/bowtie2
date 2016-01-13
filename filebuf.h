@@ -49,39 +49,45 @@ static inline bool isspace_notnl(int c) {
 //which is itself read from 
 /*static const size_t BUF_SZ_ = 256 * 1024;
 static const size_t LASTN_BUF_SZ_ = 8 * 1024;*/
-static const size_t BUF_SZ_ = 304;
-static const size_t LASTN_BUF_SZ_ = 24;
+static const int BUF_SZ_ = 304;
+static const int LASTN_BUF_SZ_ = 24;
 class FileBuff {
 public:
-	FileBuff(int size_of_record)
+	FileBuff()
 	{
-		this->sizeOfRecord = size_of_record;
-		_buf = (char*) calloc(sizeOfRecord,sizeof(char));
+	//	FileBuff(BUF_SZ_);
+		init();
 	}
-	
-	int copy_byte_array(const char * byte_array)
+
+	/*FileBuff(int size_of_record)
 	{
-		this->_cur=0;
-		return memcpy(_buf,byte_array,sizeOfRecord);
+		this->BUF_SZ_ = size_of_record;
+		//_buf = (char*) calloc(BUF_SZ_,sizeof(char));
+	}*/
+	
+	void copy_byte_array(const char * byte_array)
+	{
+		_cur=0;
+		memcpy(&_buf,byte_array,BUF_SZ_);
 	}
 	
 	
 	bool isOpen()
 	{
-		return _buf != NULL;
+		return _cur != -1;
 	}
 
 	void close() {}
 
-	~FileBuff()
+	/*~FileBuff()
 	{
 		free _buf;
-	}
+	}*/
 
 	int get()
 	{
-		assert(_buf != NULL);
-		if(_cur >= sizeOfRecord)
+		assert(_cur != -1);
+		if(_cur >= BUF_SZ_)
 		{
 			return -1;
 		}
@@ -93,16 +99,16 @@ public:
 	void reset()
 	{
 		//_cur = -1;
-		_cur = BUF_SZ_;
+		_cur = 0;
 		_buf_sz = BUF_SZ_;
 		//_done = false;
 	}	
 
 	int peek()
 	{
-		assert(_buf != NULL);
-		//assert_lt(_cur, sizeOfRecord);
-		if(_cur+1 >= sizeOfRecord)
+		assert(_cur != -1);
+		//assert_lt(_cur, BUF_SZ_);
+		if(_cur+1 >= BUF_SZ_)
 		{
 			return -1;
 		}		
@@ -127,25 +133,49 @@ public:
 		return _lastn_buf;
 	}
 	
-	size_t lastNLen() const {
+	int lastNLen() const {
 		return _lastn_cur;
 	}
 	
-private:
+	size_t gets(char *buf, size_t len) {
+		size_t stored = 0;
+		while(true) {
+			int c = get();
+			if(c == -1) {
+				// End-of-file
+				buf[stored] = '\0';
+				return stored;
+			}
+			if(stored == len-1 || isnewline(c)) {
+				// End of string
+				buf[stored] = '\0';
+				// Skip over all end-of-line characters
+				int pc = peek();
+				while(isnewline(pc)) {
+					get(); // discard
+					pc = peek();
+				}
+				// Next get() will be after all newline characters
+				return stored;
+			}
+			buf[stored++] = (char)c;
+		}
+	}
+	
+//private:
 	void init() {
 		_cur = -1;
 		//_done = false;
 		_lastn_cur = 0;
 		// no need to clear _buf[]
 	}
-	FILE     *_in;
-	size_t    _cur;
-	size_t    _buf_sz;
+	int    _cur;
+	int    _buf_sz;
 	//bool      _done;
 	uint8_t   _buf[BUF_SZ_]; // small record-sized input buffer
-	size_t    _lastn_cur;
+	int    _lastn_cur;
 	char      _lastn_buf[LASTN_BUF_SZ_]; // buffer of the last N chars dispensed
-
+};
 	
 //get
 //getOverNewline(fb_)

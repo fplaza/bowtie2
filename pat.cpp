@@ -29,6 +29,12 @@
 
 using namespace std;
 
+bool PatternSource::read_full(
+	Read& r,
+	TReadId& rdid,
+	TReadId& endid,
+	bool& success,
+	bool& done) { return nextRead(r,rdid,endid,success,done); }
 /**
  * Return a new dynamically allocated PatternSource for the given
  * format, using the given list of strings as the filenames to read
@@ -227,6 +233,10 @@ bool PairedDualPatternSource::nextReadPair(
 				cur = cur_; // Move on to next PatternSource
 				continue; // on to next pair of PatternSources
 			}
+			success = false;
+			done = false;
+			(*srca_)[cur]->read_full(ra,rdid,endid,success,done);
+			ra.finalize();
 			ra.rdid = rdid;
 			ra.endid = endid;
 			ra.mate  = 0;
@@ -268,8 +278,10 @@ bool PairedDualPatternSource::nextReadPair(
 				//release lock
 			}
 			//pass the Read's FileBuff fb___ into the Fastq read_full for each mate
-			//(*srca_)[cur]->read_full(ra,rdid_a,endid_a,success_a,done_a)
-			//(*srcb_)[cur]->read_full(rb,rdid_b,endid_b,success_b,done_b)
+			(*srca_)[cur]->read_full(ra,rdid_a,endid_a,success_a,done_a);
+			ra.finalize();
+			(*srcb_)[cur]->read_full(rb,rdid_b,endid_b,success_b,done_b);
+			rb.finalize();
 			if(fixName) {
 				ra.fixMateName(1);
 				rb.fixMateName(2);
@@ -830,23 +842,32 @@ bool FastqPatternSource::read(
 	r.reset();
 	//alread locked above so we can't take time to parse fastq record here
 	//reset 304 length buffer fb_
-	size_t bytes_read = fb_.get(&(fb__._buf),size_of_record);
+	size_t bytes_read = fb_.get((char*) &(r.fb__._buf),(size_t) BUF_SZ_);
 	//pass to fb_.get(fb__,304)
 	//then put the 304 buffer into a FileBuff object fb___
 	//store fb___ in the Read r for later parsing
 	//return, parsing will have to be done higher up
+	if(bytes_read > 0)
+	{
+		return success;
+	}
+	done = true;
+	success = false;
+	return false;
 }
 
 /// Read another pattern from a FASTQ input file
 bool FastqPatternSource::read_full(
+//bool FastqPatternSource::read(
 	Read& r,
 	TReadId& rdid,
 	TReadId& endid,
 	bool& success,
 	bool& done)
 {
-	FileBuff fb_ = r.fileBuff();
-	assert_ne(fb_,NULL);
+	assert(r.fb__ != NULL);
+	assert(r.fb__._cur != -1);
+        FileBuff fb_ = r.fb__;	
 	int c;
 	int dstLen = 0;
 	success = true;

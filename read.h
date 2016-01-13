@@ -69,12 +69,16 @@ struct Read {
 		filter = '?';
 		seed = 0;
 		ns_ = 0;
+		fb__.reset();
 	}
 	
 	/**
 	 * Finish initializing a new read.
 	 */
 	void finalize() {
+		//cwilks, not ready to finalize yet
+		if(patFw.length() == 0)
+			return;
 		for(size_t i = 0; i < patFw.length(); i++) {
 			if((int)patFw[i] > 3) {
 				ns_++;
@@ -87,7 +91,8 @@ struct Read {
 	//cwilks
 	void set_byte_record(char* bytes)
 	{
-		fixedByteRecord=bytes;
+		fb__.copy_byte_array(bytes);
+		//fixedByteRecord=bytes;
 	}
 	
 	void init_from_byte_record()
@@ -346,6 +351,7 @@ struct Read {
 #endif
 
 	char* fixedByteRecord;
+	FileBuff fb__;
 
 	BTDnaString patFw;            // forward-strand sequence
 	BTDnaString patRc;            // reverse-complement sequence
